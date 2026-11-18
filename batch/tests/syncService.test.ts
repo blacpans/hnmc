@@ -1,0 +1,184 @@
+import { errAsync, okAsync } from 'neverthrow';
+import { describe, expect, it, vi } from 'vitest';
+
+import { type EnvConfig } from '@/schemas/env';
+import { runSyncBatch, type SyncDependencies } from '@/services/syncService';
+
+const mockEnv: EnvConfig = {
+  MICROCMS_SERVICE_DOMAIN: 'test-service',
+  MICROCMS_API_KEY: 'test-api-key',
+  GEMINI_API_KEY: 'test-gemini-key',
+  GEMINI_MODEL: 'gemini-3.8-flash',
+  DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/123/abc',
+};
+
+function createMockDependencies(overrides: Partial<SyncDependencies> = {}): SyncDependencies {
+  return {
+    fetchTopStoryIds: () => okAsync([101, 102]),
+    fetchHnItem: (id) =>
+      okAsync({
+        id,
+        title: `English Title ${id}`,
+        url: `https://example.com/article-${id}`,
+        score: 250,
+      }),
+    fetchPageMetaDescription: () => okAsync('Article meta description'),
+    generateJaSummary: (_key, _model, enTitle) =>
+      okAsync({
+        jaTitle: `日本語: ${enTitle}`,
+        summary: '・要約1\n・要約2\n・要約3',
+      }),
+    checkArticleExists: () => okAsync(false),
+    createDraftArticle: (_domain, _key, payload) => okAsync(`cms-${payload.hnId}`),
+    sendDraftNotification: () => okAsync(undefined),
+    sendErrorNotification: () => okAsync(undefined),
+    ...overrides,
+  };
+}
+
+describe('runSyncBatch', () => {
+  it('未登録記事を取得・要約・下書き登録し、Discordへ通知できること', async () => {
+    const sendDraftNotification = vi.fn(() => okAsync(undefined));
+    const deps = createMockDependencies({ sendDraftNotification });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.createdCount).toBe(2);
+      expect(result.value.skippedCount).toBe(0);
+      expect(result.value.failedCount).toBe(0);
+    }
+    expect(sendDraftNotification).toHaveBeenCalledTimes(2);
+    expect(sendDraftNotification).toHaveBeenCalledWith(
+      mockEnv.DISCORD_WEBHOOK_URL,
+      expect.objectContaining({
+        contentId: 'cms-101',
+        serviceDomain: 'test-service',
+      }),
+    );
+  });
+
+  it('すでにmicroCMSに登録済みの記事はスキップされること', async () => {
+    const createDraftArticle = vi.fn(() => okAsync('cms-id'));
+    const deps = createMockDependencies({
+      checkArticleExists: (_domain, _key, hnId) => okAsync(hnId === '101'),
+      createDraftArticle,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.createdCount).toBe(1);
+      expect(result.value.skippedCount).toBe(1);
+    }
+    expect(createDraftArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it('メタデータ取得に失敗しても空文字にフォールバックして処理を継続すること', async () => {
+    const generateJaSummary = vi.fn(() =>
+      okAsync({ jaTitle: '翻訳済み', summary: '・要約1\n・要約2\n・要約3' }),
+    );
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => okAsync([101]),
+      fetchPageMetaDescription: () => errAsync(new Error('Timeout')),
+      generateJaSummary,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.createdCount).toBe(1);
+    }
+    expect(generateJaSummary).toHaveBeenCalledWith(
+      mockEnv.GEMINI_API_KEY,
+      mockEnv.GEMINI_MODEL,
+      'English Title 101',
+      '',
+    );
+  });
+
+  it('トップ記事一覧の取得に失敗した際はDiscordへエラー通知を送ること', async () => {
+    const sendErrorNotification = vi.fn(() => okAsync(undefined));
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => errAsync(new Error('HN API Down')),
+      sendErrorNotification,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isErr()).toBe(true);
+    expect(sendErrorNotification).toHaveBeenCalledWith(mockEnv.DISCORD_WEBHOOK_URL, 'HN API Down');
+  });
+
+  it('全記事の処理に失敗した際はDiscordへエラー通知を送ること', async () => {
+    const sendErrorNotification = vi.fn(() => okAsync(undefined));
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => okAsync([101]),
+      generateJaSummary: () => errAsync(new Error('Gemini Rate Limit')),
+      sendErrorNotification,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.failedCount).toBe(1);
+      expect(result.value.createdCount).toBe(0);
+    }
+    expect(sendErrorNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('連続して3件失敗した場合はクォータ保護のため処理を早期中断すること', async () => {
+    const generateJaSummary = vi.fn(() => errAsync(new Error('HTTP 503')));
+    const sendErrorNotification = vi.fn(() => okAsync(undefined));
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => okAsync([101, 102, 103, 104, 105]),
+      generateJaSummary,
+      sendErrorNotification,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.failedCount).toBe(3);
+    }
+    expect(generateJaSummary).toHaveBeenCalledTimes(3);
+    expect(sendErrorNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('未登録記事の中からスコアの高い上位3件だけが厳選されて入稿・通知されること', async () => {
+    const scores: Record<number, number> = {
+      101: 50,
+      102: 400,
+      103: 120,
+      104: 800,
+      105: 250,
+    };
+    const createDraftArticle = vi.fn((_domain, _key, payload) => okAsync(`cms-${payload.hnId}`));
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => okAsync([101, 102, 103, 104, 105]),
+      fetchHnItem: (id) =>
+        okAsync({
+          id,
+          title: `Title ${id}`,
+          url: `https://example.com/${id}`,
+          score: scores[id] ?? 0,
+        }),
+      createDraftArticle,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.createdCount).toBe(3);
+    }
+    expect(createDraftArticle).toHaveBeenCalledTimes(3);
+    const createdIds = createDraftArticle.mock.calls.map((call) => call[2].hnId);
+    expect(createdIds).toEqual(['104', '102', '105']);
+  });
+});
