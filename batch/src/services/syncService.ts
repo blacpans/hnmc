@@ -20,7 +20,12 @@ export type SyncDependencies = {
   fetchTopStoryIds: () => ResultAsync<number[], Error>;
   fetchHnItem: (id: number) => ResultAsync<HnItem, Error>;
   fetchPageMetaDescription: (url: string) => ResultAsync<string, Error>;
-  generateJaSummary: (apiKey: string, enTitle: string, metaDesc: string) => ResultAsync<GeminiSummary, Error>;
+  generateJaSummary: (
+    apiKey: string,
+    model: string,
+    enTitle: string,
+    metaDesc: string,
+  ) => ResultAsync<GeminiSummary, Error>;
   checkArticleExists: (domain: string, apiKey: string, hnId: string) => ResultAsync<boolean, Error>;
   createDraftArticle: (domain: string, apiKey: string, payload: MicroCmsDraftPayload) => ResultAsync<string, Error>;
   sendDraftNotification: (webhookUrl: string, params: DraftNotificationParams) => ResultAsync<void, Error>;
@@ -94,7 +99,7 @@ function processNewItem(env: EnvConfig, item: HnItem, deps: SyncDependencies): R
   console.log(MESSAGES.AI_GENERATING(item.title));
 
   return fetchSafeMeta(item, deps)
-    .andThen((metaDesc) => deps.generateJaSummary(env.GEMINI_API_KEY, item.title, metaDesc))
+    .andThen((metaDesc) => deps.generateJaSummary(env.GEMINI_API_KEY, env.GEMINI_MODEL, item.title, metaDesc))
     .andThen((aiResult) => saveDraftAndNotify(env, item, aiResult, deps));
 }
 

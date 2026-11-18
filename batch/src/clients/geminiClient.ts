@@ -40,10 +40,11 @@ function parseSummaryText(rawText: string): Result<GeminiSummary, Error> {
  */
 export function generateJaSummary(
   apiKey: string,
+  model: string,
   enTitle: string,
   metaDescription: string,
 ): ResultAsync<GeminiSummary, Error> {
-  const url = `${CONFIG.GEMINI_API_BASE}/${CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `${CONFIG.GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
   const body = {
     contents: [{ parts: [{ text: buildSummaryPrompt(enTitle, metaDescription) }] }],
     generationConfig: {

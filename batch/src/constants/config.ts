@@ -2,7 +2,7 @@ export const CONFIG = {
   HACKER_NEWS_API_BASE: 'https://hacker-news.firebaseio.com/v0',
   HACKER_NEWS_ITEM_WEB_BASE: 'https://news.ycombinator.com/item?id=',
   GEMINI_API_BASE: 'https://generativelanguage.googleapis.com/v1beta/models',
-  GEMINI_MODEL: 'gemini-2.5-flash',
+  DEFAULT_GEMINI_MODEL: 'gemini-3.8-flash',
   MICROCMS_ENDPOINT: 'news',
   MAX_ARTICLES_PER_RUN: 5,
   MAX_CANDIDATE_SCAN: 20,

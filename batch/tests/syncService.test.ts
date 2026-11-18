@@ -8,6 +8,7 @@ const mockEnv: EnvConfig = {
   MICROCMS_SERVICE_DOMAIN: 'test-service',
   MICROCMS_API_KEY: 'test-api-key',
   GEMINI_API_KEY: 'test-gemini-key',
+  GEMINI_MODEL: 'gemini-3.8-flash',
   DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/123/abc',
 };
 
@@ -22,7 +23,7 @@ function createMockDependencies(overrides: Partial<SyncDependencies> = {}): Sync
         score: 250,
       }),
     fetchPageMetaDescription: () => okAsync('Article meta description'),
-    generateJaSummary: (_key, enTitle) =>
+    generateJaSummary: (_key, _model, enTitle) =>
       okAsync({
         jaTitle: `日本語: ${enTitle}`,
         summary: '・要約1\n・要約2\n・要約3',
@@ -91,7 +92,12 @@ describe('runSyncBatch', () => {
     if (result.isOk()) {
       expect(result.value.createdCount).toBe(1);
     }
-    expect(generateJaSummary).toHaveBeenCalledWith(mockEnv.GEMINI_API_KEY, 'English Title 101', '');
+    expect(generateJaSummary).toHaveBeenCalledWith(
+      mockEnv.GEMINI_API_KEY,
+      mockEnv.GEMINI_MODEL,
+      'English Title 101',
+      '',
+    );
   });
 
   it('トップ記事一覧の取得に失敗した際はDiscordへエラー通知を送ること', async () => {
