@@ -1,0 +1,38 @@
+---
+import NewsFeedView from '@/components/NewsFeedView.astro';
+import { SITE_CONFIG, UI_LABELS } from '@/constants/site';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchAllPublishedNews } from '@/lib/microcms';
+import { type DayGroup, groupNewsByDate, paginateDayGroups } from '@/lib/newsGrouping';
+
+export async function getStaticPaths() {
+  const newsResult = await fetchAllPublishedNews();
+  if (newsResult.isErr()) {
+    console.error(newsResult.error.message);
+    return [];
+  }
+
+  const groups = groupNewsByDate(newsResult.value);
+  const totalPages = Math.max(1, Math.ceil(groups.length / SITE_CONFIG.DAYS_PER_PAGE));
+
+  return Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => {
+    const page = index + 2;
+    return {
+      params: { page: String(page) },
+      props: { groups, page },
+    };
+  });
+}
+
+interface Props {
+  groups: DayGroup[];
+  page: number;
+}
+
+const { groups, page } = Astro.props;
+const paginated = paginateDayGroups(groups, page);
+---
+
+<BaseLayout title={UI_LABELS.PAGE_TITLE_SUFFIX(page)}>
+  <NewsFeedView paginated={paginated} />
+</BaseLayout>

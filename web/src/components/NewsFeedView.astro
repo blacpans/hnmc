@@ -1,0 +1,50 @@
+---
+import DaySection from '@/components/DaySection.astro';
+import Pagination from '@/components/Pagination.astro';
+import { UI_LABELS } from '@/constants/site';
+import { type PaginatedDayGroups } from '@/lib/newsGrouping';
+
+interface Props {
+  paginated: PaginatedDayGroups;
+  hasError?: boolean;
+}
+
+const { paginated, hasError = false } = Astro.props;
+---
+
+{
+  hasError ? (
+    <p class="status-message error">{UI_LABELS.FETCH_ERROR_MESSAGE}</p>
+  ) : paginated.groups.length === 0 ? (
+    <p class="status-message">{UI_LABELS.EMPTY_MESSAGE}</p>
+  ) : (
+    <>
+      {paginated.groups.map((group) => (
+        <DaySection group={group} />
+      ))}
+
+      <Pagination
+        currentPage={paginated.currentPage}
+        totalPages={paginated.totalPages}
+        hasPrev={paginated.hasPrev}
+        hasNext={paginated.hasNext}
+      />
+    </>
+  )
+}
+
+<style>
+  .status-message {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    color: var(--text-secondary);
+  }
+
+  .status-message.error {
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+  }
+</style>

@@ -1,0 +1,20 @@
+---
+import NewsFeedView from '@/components/NewsFeedView.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchAllPublishedNews } from '@/lib/microcms';
+import { groupNewsByDate, paginateDayGroups } from '@/lib/newsGrouping';
+
+const newsResult = await fetchAllPublishedNews();
+const hasError = newsResult.isErr();
+
+if (newsResult.isErr()) {
+  console.error(newsResult.error.message);
+}
+
+const groups = newsResult.isOk() ? groupNewsByDate(newsResult.value) : [];
+const paginated = paginateDayGroups(groups, 1);
+---
+
+<BaseLayout>
+  <NewsFeedView paginated={paginated} hasError={hasError} />
+</BaseLayout>

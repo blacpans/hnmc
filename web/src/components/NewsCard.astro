@@ -1,0 +1,169 @@
+---
+import { UI_LABELS } from '@/constants/site';
+import { type NewsItem } from '@/schemas/news';
+
+interface Props {
+  item: NewsItem;
+}
+
+const { item } = Astro.props;
+const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
+---
+
+<article class="card">
+  <div class="meta">
+    <span class="score">▲ {item.score} pts</span>
+  </div>
+
+  <h3 class="ja-title">
+    <a href={item.url} target="_blank" rel="noopener noreferrer">
+      {item.jaTitle}
+    </a>
+  </h3>
+  <p class="en-title">{UI_LABELS.ORIGINAL_TITLE_PREFIX} {item.title}</p>
+
+  <div class="summary-box">
+    <span class="badge summary-badge">{UI_LABELS.SUMMARY_BADGE}</span>
+    <p class="box-text">{item.aiSummary}</p>
+  </div>
+
+  {
+    item.comment && (
+      <div class="comment-box">
+        <span class="badge comment-badge">{UI_LABELS.COMMENT_BADGE}</span>
+        <p class="box-text">{item.comment}</p>
+      </div>
+    )
+  }
+
+  <div class="footer-links">
+    <a href={item.url} target="_blank" rel="noopener noreferrer" class="btn-primary">
+      {UI_LABELS.READ_ARTICLE}
+    </a>
+    <a href={hnDiscussionUrl} target="_blank" rel="noopener noreferrer" class="hn-link">
+      {UI_LABELS.VIEW_HN_DISCUSSION}
+    </a>
+  </div>
+</article>
+
+<style>
+  .card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 1.35rem 1.5rem;
+    transition: border-color 0.18s ease, background-color 0.18s ease;
+  }
+
+  .card:hover {
+    border-color: rgba(255, 102, 0, 0.55);
+    background-color: var(--bg-surface-hover);
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.45rem;
+  }
+
+  .score {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--hn-orange);
+  }
+
+  .ja-title {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 1.18rem;
+    line-height: 1.45;
+  }
+
+  .ja-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .ja-title a:hover {
+    color: var(--hn-orange);
+    text-decoration: underline;
+  }
+
+  .en-title {
+    margin: 0 0 1rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .summary-box,
+  .comment-box {
+    padding: 0.85rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.9rem;
+  }
+
+  .summary-box {
+    background-color: #131b2b;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .comment-box {
+    background-color: #211911;
+    border-left: 3px solid var(--hn-orange);
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+
+  .summary-badge {
+    color: #60a5fa;
+  }
+
+  .comment-badge {
+    color: #fb923c;
+  }
+
+  .box-text {
+    margin: 0;
+    white-space: pre-line;
+    font-size: 0.93rem;
+    color: #e5e7eb;
+  }
+
+  .footer-links {
+    display: flex;
+    align-items: center;
+    gap: 1.15rem;
+    margin-top: 1rem;
+  }
+
+  .btn-primary {
+    background-color: var(--hn-orange);
+    color: #fff;
+    text-decoration: none;
+    padding: 0.42rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    transition: opacity 0.15s ease;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.88;
+  }
+
+  .hn-link {
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+
+  .hn-link:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+</style>
