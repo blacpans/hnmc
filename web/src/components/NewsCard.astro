@@ -1,0 +1,244 @@
+---
+import { UI_LABELS } from '@/constants/site';
+import { type NewsItem } from '@/schemas/news';
+
+interface Props {
+  item: NewsItem;
+}
+
+const { item } = Astro.props;
+const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+const domain = extractDomain(item.url);
+---
+
+<article class="card">
+  <div class="meta">
+    <span class="score">▲ {item.score} pts</span>
+    {domain && <span class="domain">{domain}</span>}
+  </div>
+
+  <h3 class="ja-title">
+    <a href={item.url} target="_blank" rel="noopener noreferrer">
+      {item.jaTitle}
+    </a>
+  </h3>
+  <p class="en-title">{UI_LABELS.ORIGINAL_TITLE_PREFIX} {item.title}</p>
+
+  <div class="summary-box">
+    <span class="badge summary-badge">{UI_LABELS.SUMMARY_BADGE}</span>
+    <p class="box-text">{item.aiSummary}</p>
+  </div>
+
+  {
+    item.comment && (
+      <div class="comment-row">
+        <div class="speech-bubble">
+          <span class="badge comment-badge">{UI_LABELS.COMMENT_BADGE}</span>
+          <p class="box-text">{item.comment}</p>
+        </div>
+        <div class="curator-avatar" aria-hidden="true">
+          <span>✍️</span>
+        </div>
+      </div>
+    )
+  }
+
+  <div class="footer-links">
+    <a href={hnDiscussionUrl} target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+      {UI_LABELS.VIEW_HN_DISCUSSION}
+    </a>
+    <a href={item.url} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+      {UI_LABELS.READ_ARTICLE}
+    </a>
+  </div>
+</article>
+
+<style>
+  .card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 1.35rem 1.5rem;
+    transition: border-color 0.18s ease, background-color 0.18s ease;
+  }
+
+  .card:hover {
+    border-color: rgba(255, 102, 0, 0.55);
+    background-color: var(--bg-surface-hover);
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .score {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--hn-orange);
+    background-color: var(--hn-orange-soft);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .domain {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .ja-title {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 1.18rem;
+    line-height: 1.45;
+  }
+
+  .ja-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .ja-title a:hover {
+    color: var(--hn-orange);
+    text-decoration: underline;
+  }
+
+  .en-title {
+    margin: 0 0 1rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .summary-box {
+    padding: 0.85rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    background-color: #131b2b;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .comment-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  .curator-avatar {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff6600, #ea580c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    box-shadow: 0 2px 8px rgba(255, 102, 0, 0.25);
+    margin-top: 0.15rem;
+  }
+
+  .speech-bubble {
+    position: relative;
+    max-width: 85%;
+    min-width: min(260px, 100%);
+    padding: 0.85rem 1.1rem;
+    background-color: #221a14;
+    border: 1px solid rgba(255, 102, 0, 0.4);
+    border-radius: 14px;
+    border-top-right-radius: 4px;
+  }
+
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    top: 12px;
+    right: -7px;
+    width: 12px;
+    height: 12px;
+    background-color: #221a14;
+    border-right: 1px solid rgba(255, 102, 0, 0.4);
+    border-top: 1px solid rgba(255, 102, 0, 0.4);
+    transform: rotate(45deg);
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+
+  .summary-badge {
+    color: #60a5fa;
+  }
+
+  .comment-badge {
+    color: #fb923c;
+  }
+
+  .box-text {
+    margin: 0;
+    white-space: pre-line;
+    font-size: 0.93rem;
+    color: #e5e7eb;
+  }
+
+  .footer-links {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.15rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    padding: 0.48rem 1rem;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    transition: all 0.15s ease;
+  }
+
+  .btn-primary {
+    background-color: var(--hn-orange);
+    border: 1px solid var(--hn-orange);
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.88;
+  }
+
+  .btn-secondary {
+    background-color: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--hn-orange);
+    color: var(--hn-orange);
+    background-color: var(--hn-orange-soft);
+  }
+</style>

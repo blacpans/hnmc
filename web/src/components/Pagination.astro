@@ -1,0 +1,123 @@
+---
+import { UI_LABELS } from '@/constants/site';
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  hasPrev: boolean;
+  hasNext: boolean;
+}
+
+const { currentPage, totalPages, hasPrev, hasNext } = Astro.props;
+
+function getPageUrl(page: number): string {
+  return page <= 1 ? '/' : `/page/${page}`;
+}
+
+const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+---
+
+{
+  totalPages > 1 && (
+    <nav class="pagination" aria-label="ページネーション">
+      {hasPrev ? (
+        <a href={getPageUrl(currentPage - 1)} class="page-btn">
+          {UI_LABELS.PREV_PAGE}
+        </a>
+      ) : (
+        <span class="page-btn disabled">{UI_LABELS.PREV_PAGE}</span>
+      )}
+
+      <div class="page-numbers">
+        {pageNumbers.map((page) =>
+          page === currentPage ? (
+            <span class="page-num active" aria-current="page">
+              {page}
+            </span>
+          ) : (
+            <a href={getPageUrl(page)} class="page-num">
+              {page}
+            </a>
+          ),
+        )}
+      </div>
+
+      {hasNext ? (
+        <a href={getPageUrl(currentPage + 1)} class="page-btn">
+          {UI_LABELS.NEXT_PAGE}
+        </a>
+      ) : (
+        <span class="page-btn disabled">{UI_LABELS.NEXT_PAGE}</span>
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 2.5rem 0 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+  }
+
+  .page-btn {
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .page-btn:not(.disabled):hover {
+    border-color: var(--hn-orange);
+    color: var(--hn-orange);
+  }
+
+  .page-btn.disabled {
+    color: var(--text-muted);
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .page-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-secondary);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .page-num:hover:not(.active) {
+    border-color: var(--hn-orange);
+    color: var(--text-primary);
+  }
+
+  .page-num.active {
+    background-color: var(--hn-orange);
+    border-color: var(--hn-orange);
+    color: #fff;
+  }
+</style>

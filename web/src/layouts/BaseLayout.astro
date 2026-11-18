@@ -1,0 +1,122 @@
+---
+import { SITE_CONFIG } from '@/constants/site';
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+const pageTitle = title ? `${title} | ${SITE_CONFIG.TITLE}` : SITE_CONFIG.TITLE;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="/" class="brand-link">
+          <span class="hn-badge">HN</span>
+          <h1 class="site-title">{SITE_CONFIG.TITLE}</h1>
+        </a>
+      </div>
+    </header>
+
+    <main class="container">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <p>Powered by Hacker News API × Gemini API × microCMS × Astro</p>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg-base: #0d0f12;
+    --bg-surface: #16191f;
+    --bg-surface-hover: #1c2028;
+    --border-subtle: #2a2f3a;
+    --hn-orange: #ff6600;
+    --hn-orange-soft: rgba(255, 102, 0, 0.14);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans JP', sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .site-header {
+    background-color: var(--bg-surface);
+    border-bottom: 2px solid var(--hn-orange);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-inner {
+    max-width: 840px;
+    margin: 0 auto;
+    padding: 0.9rem 1.25rem;
+  }
+
+  .brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+
+  .hn-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background-color: var(--hn-orange);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    letter-spacing: -0.02em;
+  }
+
+  .site-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .container {
+    max-width: 840px;
+    margin: 2rem auto;
+    padding: 0 1.25rem;
+    min-height: calc(100vh - 180px);
+  }
+
+  .site-footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+</style>

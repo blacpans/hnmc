@@ -1,0 +1,60 @@
+---
+import NewsCard from '@/components/NewsCard.astro';
+import { type DayGroup } from '@/lib/newsGrouping';
+
+interface Props {
+  group: DayGroup;
+}
+
+const { group } = Astro.props;
+---
+
+<section class="day-section">
+  <div class="day-header">
+    <h2 class="day-title">
+      <time datetime={group.dateKey}>{group.displayDate}</time>
+    </h2>
+    <span class="day-count">{group.items.length}件</span>
+  </div>
+
+  <div class="cards-list">
+    {group.items.map((item) => <NewsCard item={item} />)}
+  </div>
+</section>
+
+<style>
+  .day-section {
+    margin-bottom: 2.75rem;
+  }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .day-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--hn-orange);
+  }
+
+  .day-count {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+</style>
