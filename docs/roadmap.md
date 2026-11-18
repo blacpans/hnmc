@@ -29,24 +29,24 @@ flowchart LR
 - [ ] **Google Gemini API の準備**
   - [ ] Google AI Studio で `GEMINI_API_KEY` を発行
 - [ ] **スマホ通知先の準備**
-  - [ ] Slack（または Discord）で Incoming Webhook URL を発行
+  - [ ] Discord で Webhook URL を発行
 - [ ] **GitHub リポジトリ設定**
-  - [ ] リポジトリの Secrets に環境変数を登録（`MICROCMS_SERVICE_DOMAIN`, `MICROCMS_API_KEY`, `MICROCMS_WRITE_API_KEY`, `GEMINI_API_KEY`, `NOTIFY_WEBHOOK_URL` 等）
+  - [ ] リポジトリの Secrets に環境変数を登録（`MICROCMS_SERVICE_DOMAIN`, `MICROCMS_API_KEY`, `MICROCMS_WRITE_API_KEY`, `GEMINI_API_KEY`, `DISCORD_WEBHOOK_URL` 等）
 
 ---
 
 ### Phase 2: 自動収集・AI要約・通知バッチの実装
-Node.js / TypeScript で、堅牢かつ保守性の高いバッチ処理を実装する。
+TypeScript（`tsx` 実行）で、堅牢かつ保守性の高いバッチ処理を実装する。
 
 - [ ] **プロジェクト初期化**
-  - [ ] `package.json` / `tsconfig.json` 作成
-  - [ ] 型安全なエラーハンドリング基盤（`neverthrow` 等）の導入検討
+  - [ ] `package.json` / `tsconfig.json` 作成（`tsx`, `neverthrow` 等）
+  - [ ] 型安全なエラーハンドリング基盤の構築
 - [ ] **各クライアントモジュールの実装**
   - [ ] Hacker News API クライアント（`topstories` & `item` 取得）
   - [ ] 元記事メタデータ抽出（タイムアウト付きで `meta description` / `og:description` を取得）
   - [ ] Gemini API クライアント（`gemini-2.5-flash` + `responseSchema` で日本語タイトル・3行要約生成）
   - [ ] microCMS クライアント（`hnId` での重複チェック & `status=draft` での登録）
-  - [ ] 通知クライアント（`contentId` を使った編集画面直リンク `https://{domain}.microcms.io/apis/news/{contentId}` 付き通知）
+  - [ ] Discord 通知クライアント（`contentId` を使った編集画面直リンク `https://{domain}.microcms.io/apis/news/{contentId}` 付きEmbed通知）
 - [ ] **テスト & ローカル動作確認**
   - [ ] 単体テスト作成（重複スキップ、パースエラー耐性など）
   - [ ] ローカル環境での実機疎通テスト（下書き登録＆スマホ通知着信まで）
@@ -74,8 +74,8 @@ microCMS に公開された記事を爆速で配信するサイトを作る。
   - [ ] `NewsItem` 型定義 & 記事一覧取得ロジック実装
   - [ ] Hacker News 風のカード UI 実装（AI要約ボックス & 先輩のひとことボックス）
 - [ ] **ホスティング & 自動デプロイ設定**
-  - [ ] Cloudflare Pages または Vercel へデプロイ
-  - [ ] ホスティング側の Deploy Hook URL を発行
+  - [ ] Cloudflare Pages へデプロイ
+  - [ ] Cloudflare Pages 側の Deploy Hook URL を発行
   - [ ] microCMS 管理画面で Webhook 設定（トリガーを「コンテンツの公開」のみに限定）
 - [ ] **E2E 動作確認**
   - [ ] スマホからコメント追記 ➔ 「公開」ボタン押下 ➔ 自動ビルド ➔ 公開サイトへ反映される一連の流れを確認

@@ -7,8 +7,8 @@
 ## 1. システム概要
 
 毎朝Hacker Newsのトレンド記事を自動取得し、Gemini APIで日本語要約を生成した上でmicroCMSに下書き（draft）として登録する。
-登録完了時にSlack（またはDiscord）へ通知を飛ばし、ユーザーがスマホからワンタップでmicroCMSの編集画面を開いてひとことコメントを添えて公開できる半自動キュレーション基盤である。
-記事公開時はWebhook経由でAstro（SSG）が自動ビルド＆デプロイされ、超高速なWebサイトとして世界へ配信される。
+登録完了時にDiscordへ通知を飛ばし、ユーザーがスマホからワンタップでmicroCMSの編集画面を開いてひとことコメントを添えて公開できる半自動キュレーション基盤である。
+記事公開時はWebhook経由でAstro（SSG）がCloudflare Pagesへ自動ビルド＆デプロイされ、超高速なWebサイトとして世界へ配信される。
 
 ---
 
@@ -26,7 +26,7 @@ flowchart TD
     %% バッチシステム
     subgraph BatchSystem ["定期実行バッチ (完全サーバーレス)"]
         Cron["⏰ GitHub Actions<br/>(Cron: 毎朝8時 JST)"]
-        Script["⚡ 同期スクリプト<br/>(Node.js / TypeScript)"]
+        Script["⚡ 同期スクリプト<br/>(TypeScript / tsx)"]
         Cron -->|ワークフロー起動| Script
     end
 
@@ -37,16 +37,16 @@ flowchart TD
 
     %% モバイル通知 & キュレーション
     subgraph MobileCuration ["モバイル通知 & 人間キュレーション"]
-        Slack["💬 Slack / Discord<br/>(Incoming Webhook)"]
+        Discord["💬 Discord<br/>(Incoming Webhook)"]
         Smartphone["📱 キュレーター (先輩)<br/>(スマホブラウザで直リンク表示)"]
-        Slack -->|編集リンクをタップ| Smartphone
+        Discord -->|編集リンクをタップ| Smartphone
         Smartphone -->|ひとことコメント追記 & 公開| MicroCMS
     end
 
     %% フロントエンド配信
     subgraph WebHosting ["フロントエンド & 静的ホスティング"]
         Webhook["🔔 microCMS Webhook<br/>(公開イベント検知)"]
-        DeployHook["🚀 Hosting Deploy Hook<br/>(Cloudflare Pages / Vercel)"]
+        DeployHook["🚀 Cloudflare Pages<br/>(Deploy Hook)"]
         AstroSite["✨ Astro Webサイト<br/>(超高速SSG / カードUI)"]
         
         MicroCMS -->|コンテンツ公開時のみ発火| Webhook
@@ -60,7 +60,7 @@ flowchart TD
     Script -->|2. メタデータ取得| Web
     Script -->|3. 日本語タイトル & 3行要約生成| Gemini
     Script -->|4. 重複排除チェック & 下書き入稿| MicroCMS
-    Script -->|5. 編集直リンク付き通知| Slack
+    Script -->|5. 編集直リンク付き通知| Discord
 ```
 
 ---
@@ -76,16 +76,16 @@ stateDiagram-v2
     
     重複チェック --> 要約生成中: 未登録の記事
     要約生成中 --> 下書き登録完了: Gemini APIで日本語タイトル&3行要約生成
-    下書き登録完了 --> 通知送信済み: microCMSに下書き(draft)POST & Slack通知
+    下書き登録完了 --> 通知送信済み: microCMSに下書き(draft)POST & Discord通知
     
     state "人間によるキュレーション" as Curation {
-        通知送信済み --> スマホで確認: 先輩がSlack通知をタップ
+        通知送信済み --> スマホで確認: 先輩がDiscord通知をタップ
         スマホで確認 --> コメント追記: microCMS編集画面でひとこと記入
         コメント追記 --> 公開: 「公開」ボタンを押下！
     }
     
     公開 --> Webhook発火: microCMSが公開イベントを通知
-    Webhook発火 --> ビルド中: Cloudflare / Vercel でデプロイ開始
+    Webhook発火 --> ビルド中: Cloudflare Pages でデプロイ開始
     ビルド中 --> サイト公開完了: Astro SSG サイトに反映
     サイト公開完了 --> [*]
 ```
@@ -103,12 +103,12 @@ sequenceDiagram
     participant Target as 元記事Web
     participant Gemini as Gemini API
     participant CMS as microCMS
-    participant Slack as Slack (スマホ通知)
+    participant Discord as Discord (スマホ通知)
     actor User as 先輩 (スマホ)
-    participant Hosting as ホスティング (Astro)
+    participant Hosting as Cloudflare Pages (Astro)
 
     Note over Cron: 毎朝8:00 (JST) 定期起動
-    Cron->>Script: スクリプト実行 (node sync-hn)
+    Cron->>Script: スクリプト実行 (tsx sync-hn.ts)
     Script->>HN: GET /v0/topstories.json
     HN-->>Script: 記事IDリスト [id1, id2, ...]
 
@@ -127,12 +127,12 @@ sequenceDiagram
             Gemini-->>Script: { jaTitle, summary }
             Script->>CMS: POST /news?status=draft (下書き登録)
             CMS-->>Script: 201 Created (contentId)
-            Script->>Slack: Incoming Webhook (直リンクURL付き通知)
+            Script->>Discord: Incoming Webhook (直リンクURL付き通知)
         end
     end
 
-    Note over Slack,User: スマホにプッシュ通知が届く
-    User->>Slack: 通知内の「編集画面を開く」リンクをタップ
+    Note over Discord,User: スマホにプッシュ通知が届く
+    User->>Discord: 通知内の「編集画面を開く」リンクをタップ
     User->>CMS: 編集画面でひとことコメント記入 ＆ 「公開」ボタン押下
     CMS->>Hosting: Webhook POST (公開時のみトリガー)
     Hosting->>CMS: GET /news (公開済み最新記事一覧)
@@ -181,4 +181,4 @@ erDiagram
 3. **安全なスクレイピングと著作権配慮**:
    - 元記事の本文は一切保持せず、ヘッダー（OGP/meta description）のみを取得して要約材料とし、元記事URLへのリンクを明記。
 4. **完全無料枠での運用**:
-   - GitHub Actions、Gemini 2.5 Flash無料枠、microCMS Hobbyプラン、Cloudflare Pages/Vercelを活用。
+   - GitHub Actions、Gemini 2.5 Flash無料枠、microCMS Hobbyプラン、Cloudflare Pagesを活用。
