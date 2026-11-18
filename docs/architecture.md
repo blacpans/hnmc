@@ -1,119 +1,98 @@
 # システム全体アーキテクチャ設計書 (hnmc)
 
-本ドキュメントは、「Hacker News × Gemini API × microCMS × Astro」を統合した半自動テックニュース・キュレーションメディアの全体設計をまとめたものである。
+本ドキュメントは、「Hacker News × Gemini API × microCMS × Astro」を統合した半自動テックニュース・キュレーションメディアの全体設計をMermaid図面を中心にまとめたものである。
 
 ---
 
 ## 1. システム概要
 
-毎朝Hacker Newsのトレンド記事を自動取得し、Gemini APIで日本語要約を生成した上でmicroCMSに下書きとして登録する。
+毎朝Hacker Newsのトレンド記事を自動取得し、Gemini APIで日本語要約を生成した上でmicroCMSに下書き（draft）として登録する。
 登録完了時にSlack（またはDiscord）へ通知を飛ばし、ユーザーがスマホからワンタップでmicroCMSの編集画面を開いてひとことコメントを添えて公開できる半自動キュレーション基盤である。
-記事公開時はWebhook経由でAstro（SSG）が自動ビルド＆デプロイされ、高速なWebサイトとして閲覧可能になる。
+記事公開時はWebhook経由でAstro（SSG）が自動ビルド＆デプロイされ、超高速なWebサイトとして世界へ配信される。
 
 ---
 
-## 2. 全体アーキテクチャ図
-
-### Mermaid 図（GitHub / Qiita ネイティブ対応）
+## 2. システム全体アーキテクチャ図
 
 ```mermaid
-graph TD
-    subgraph DataSources ["外部データソース & AI"]
-        HN["Hacker News API<br/>(Firebase)"]
-        Web["元記事Webサイト<br/>(OGP / メタデータ)"]
-        Gemini["Google Gemini API<br/>(gemini-2.5-flash / Structured Outputs)"]
+flowchart TD
+    %% 外部データソース & AI
+    subgraph ExternalSources ["外部データソース & AI基盤"]
+        HN["🔥 Hacker News API<br/>(Firebase: トップ記事取得)"]
+        Web["🌐 元記事 Webサイト<br/>(HTML: OGP / Description抽出)"]
+        Gemini["🤖 Google Gemini API<br/>(gemini-2.5-flash: 構造化要約)"]
     end
 
-    subgraph BatchSystem ["バッチ処理 (定期実行)"]
-        GHA["GitHub Actions<br/>(Cron: 毎日朝8時 JST)"]
-        SyncScript["同期スクリプト<br/>(Node.js / TypeScript)"]
-        GHA --> SyncScript
+    %% バッチシステム
+    subgraph BatchSystem ["定期実行バッチ (完全サーバーレス)"]
+        Cron["⏰ GitHub Actions<br/>(Cron: 毎朝8時 JST)"]
+        Script["⚡ 同期スクリプト<br/>(Node.js / TypeScript)"]
+        Cron -->|ワークフロー起動| Script
     end
 
+    %% ヘッドレスCMS
     subgraph HeadlessCMS ["コンテンツ管理基盤"]
-        MicroCMS["microCMS<br/>(news API: draft状態)"]
+        MicroCMS[("📦 microCMS<br/>[news API]<br/>status: draft / published")]
     end
 
-    subgraph NotificationAndUser ["通知 & 人間キュレーション"]
-        Slack["Slack / Discord<br/>(Incoming Webhook)"]
-        UserPhone["スマホブラウザ<br/>(microCMS編集画面)"]
-        Slack -->|編集リンクタップ| UserPhone
-        UserPhone -->|コメント追記 & 公開| MicroCMS
+    %% モバイル通知 & キュレーション
+    subgraph MobileCuration ["モバイル通知 & 人間キュレーション"]
+        Slack["💬 Slack / Discord<br/>(Incoming Webhook)"]
+        Smartphone["📱 キュレーター (先輩)<br/>(スマホブラウザで直リンク表示)"]
+        Slack -->|編集リンクをタップ| Smartphone
+        Smartphone -->|ひとことコメント追記 & 公開| MicroCMS
     end
 
-    subgraph FrontendAndHosting ["フロントエンド & デプロイ"]
-        Webhook["microCMS Webhook<br/>(公開トリガー)"]
-        Hosting["Cloudflare Pages / Vercel<br/>(Build & Hosting)"]
-        AstroSite["Astro Webサイト<br/>(SSG / カードUI)"]
-        MicroCMS -->|公開イベント| Webhook
-        Webhook --> Hosting
-        Hosting --> AstroSite
+    %% フロントエンド配信
+    subgraph WebHosting ["フロントエンド & 静的ホスティング"]
+        Webhook["🔔 microCMS Webhook<br/>(公開イベント検知)"]
+        DeployHook["🚀 Hosting Deploy Hook<br/>(Cloudflare Pages / Vercel)"]
+        AstroSite["✨ Astro Webサイト<br/>(超高速SSG / カードUI)"]
+        
+        MicroCMS -->|コンテンツ公開時のみ発火| Webhook
+        Webhook --> DeployHook
+        DeployHook -->|SSGビルド実行| AstroSite
+        AstroSite -->|ビルド時記事取得| MicroCMS
     end
 
-    SyncScript -->|1. トレンド記事ID取得| HN
-    SyncScript -->|2. メタデータ取得| Web
-    SyncScript -->|3. タイトル翻訳 & 3行要約生成| Gemini
-    SyncScript -->|4. 重複チェック & 下書き入稿| MicroCMS
-    SyncScript -->|5. 編集直リンク付き通知| Slack
-    AstroSite -->|ビルド時データ取得| MicroCMS
-```
-
-### PlantUML 図
-
-```plantuml
-@startuml
-skinparam handwritten false
-skinparam monochrome false
-skinparam shadowing true
-skinparam packageStyle rectangle
-
-package "外部データソース & AI" {
-    [Hacker News API] as HN
-    [元記事 Webサイト] as Web
-    [Google Gemini API] as Gemini
-}
-
-package "バッチ実行環境" {
-    [GitHub Actions] as GHA
-    [同期スクリプト (TypeScript)] as Script
-    GHA ..> Script : 定期実行 (Cron)
-}
-
-package "ヘッドレスCMS" {
-    database "microCMS" as CMS
-}
-
-package "モバイル通知 & キュレーション" {
-    [Slack / Discord] as Chat
-    actor "キュレーター (スマホ)" as User
-}
-
-package "フロントエンド配信" {
-    [Webhook Dispatcher] as Hook
-    [Astro SSG (Cloudflare / Vercel)] as WebApp
-    interface "公開Webサイト" as PublicSite
-}
-
-Script --> HN : 1. 上位記事取得
-Script --> Web : 2. OGP/説明文取得
-Script --> Gemini : 3. 翻訳 & 要約リクエスト
-Script --> CMS : 4. 下書き(draft)登録
-Script --> Chat : 5. 直リンク付き通知送信
-
-Chat --> User : プッシュ通知
-User --> CMS : 6. コメント追記 & 公開操作
-CMS --> Hook : 7. 公開Webhook発火
-Hook --> WebApp : 8. デプロイフック起動
-WebApp --> CMS : 9. 公開記事データ取得
-WebApp --> PublicSite : 10. 静的配信
-@enduml
+    %% データ連携フロー
+    Script -->|1. トレンド記事ID取得| HN
+    Script -->|2. メタデータ取得| Web
+    Script -->|3. 日本語タイトル & 3行要約生成| Gemini
+    Script -->|4. 重複排除チェック & 下書き入稿| MicroCMS
+    Script -->|5. 編集直リンク付き通知| Slack
 ```
 
 ---
 
-## 3. 処理シーケンス図
+## 3. 記事ライフサイクル（状態遷移図）
 
-### Mermaid シーケンス図
+```mermaid
+stateDiagram-v2
+    [*] --> 未取得: Hacker News上に記事が投稿される
+    未取得 --> 重複チェック: GitHub Actions が毎朝起動
+    重複チェック --> スキップ: 既に microCMS に登録済み (hnId一致)
+    スキップ --> [*]
+    
+    重複チェック --> 要約生成中: 未登録の記事
+    要約生成中 --> 下書き登録完了: Gemini APIで日本語タイトル&3行要約生成
+    下書き登録完了 --> 通知送信済み: microCMSに下書き(draft)POST & Slack通知
+    
+    state "人間によるキュレーション" as Curation {
+        通知送信済み --> スマホで確認: 先輩がSlack通知をタップ
+        スマホで確認 --> コメント追記: microCMS編集画面でひとこと記入
+        コメント追記 --> 公開: 「公開」ボタンを押下！
+    }
+    
+    公開 --> Webhook発火: microCMSが公開イベントを通知
+    Webhook発火 --> ビルド中: Cloudflare / Vercel でデプロイ開始
+    ビルド中 --> サイト公開完了: Astro SSG サイトに反映
+    サイト公開完了 --> [*]
+```
+
+---
+
+## 4. 処理シーケンス図
 
 ```mermaid
 sequenceDiagram
@@ -128,86 +107,58 @@ sequenceDiagram
     actor User as 先輩 (スマホ)
     participant Hosting as ホスティング (Astro)
 
-    Note over Cron: 毎朝8:00 (JST) 起動
-    Cron->>Script: スクリプト実行
-    Script->>HN: /v0/topstories.json 取得
-    HN-->>Script: 記事IDリスト
-    
-    loop 上位記事 (例: 5件)
+    Note over Cron: 毎朝8:00 (JST) 定期起動
+    Cron->>Script: スクリプト実行 (node sync-hn)
+    Script->>HN: GET /v0/topstories.json
+    HN-->>Script: 記事IDリスト [id1, id2, ...]
+
+    loop 上位記事 (未登録の先頭5件)
         Script->>CMS: GET /news?filters=hnId[equals]{id} (重複チェック)
         alt 登録済み
             Script-->>Script: スキップ
         else 未登録
-            Script->>HN: /v0/item/{id}.json (詳細取得)
-            HN-->>Script: タイトル, URL, スコア等
-            opt 元記事URLあり
-                Script->>Target: HTMLヘッダー取得 (OGP/Description)
-                Target-->>Script: メタデータ
+            Script->>HN: GET /v0/item/{id}.json (記事詳細取得)
+            HN-->>Script: { title, url, score, ... }
+            opt 元記事URLが存在する場合
+                Script->>Target: GET HTML (OGP/meta description抽出)
+                Target-->>Script: メタデータ文字列
             end
-            Script->>Gemini: 構造化要約プロンプト送信
+            Script->>Gemini: POST generateContent (Structured Outputs)
             Gemini-->>Script: { jaTitle, summary }
-            Script->>CMS: POST /news?status=draft
+            Script->>CMS: POST /news?status=draft (下書き登録)
             CMS-->>Script: 201 Created (contentId)
-            Script->>Slack: Incoming Webhook 送信 (直リンクURL含む)
+            Script->>Slack: Incoming Webhook (直リンクURL付き通知)
         end
     end
 
-    Note over Slack,User: スマホにプッシュ通知着信
-    User->>Slack: 通知タップ (直リンク)
-    User->>CMS: 編集画面でひとことコメント記入 ＆ 「公開」クリック
-    CMS->>Hosting: Webhook発火 (on content published)
-    Hosting->>CMS: GET /news (最新公開記事の取得)
+    Note over Slack,User: スマホにプッシュ通知が届く
+    User->>Slack: 通知内の「編集画面を開く」リンクをタップ
+    User->>CMS: 編集画面でひとことコメント記入 ＆ 「公開」ボタン押下
+    CMS->>Hosting: Webhook POST (公開時のみトリガー)
+    Hosting->>CMS: GET /news (公開済み最新記事一覧)
     CMS-->>Hosting: 記事データ
     Hosting->>Hosting: Astro SSG ビルド＆静的デプロイ
-    Note over Hosting: サイト更新完了！
-```
-
-### PlantUML シーケンス図
-
-```plantuml
-@startuml
-autonumber
-actor "GitHub Actions" as Cron
-participant "同期スクリプト" as Script
-participant "Hacker News API" as HN
-participant "元記事" as Target
-participant "Gemini API" as Gemini
-participant "microCMS" as CMS
-participant "Slack" as Slack
-actor "キュレーター (先輩)" as User
-participant "Astro / Hosting" as WebApp
-
-Cron -> Script : 毎朝8時 ジョブ起動
-Script -> HN : トップ記事ID取得
-HN --> Script : ID一覧
-
-loop 未登録の上位5件
-    Script -> CMS : 既存hnIdの重複チェック
-    alt 未登録の場合
-        Script -> HN : 記事詳細取得
-        HN --> Script : タイトル・URL・スコア
-        Script -> Target : OGP・メタ情報取得
-        Target --> Script : メタデータ
-        Script -> Gemini : 翻訳・3行要約生成要求
-        Gemini --> Script : 構造化JSON (jaTitle, summary)
-        Script -> CMS : 下書き(draft)として登録
-        CMS --> Script : contentId 返却
-        Script -> Slack : 編集画面直リンク付き通知
-    end
-end
-
-Slack -> User : スマホプッシュ通知
-User -> CMS : 編集画面でコメント入力 & 「公開」ボタン押下
-CMS -> WebApp : Webhook通知 (公開イベント)
-WebApp -> CMS : 公開記事一覧取得
-CMS --> WebApp : 記事データ
-WebApp -> WebApp : SSGビルド & デプロイ完了
-@enduml
+    Note over Hosting: サイトの更新が完了！
 ```
 
 ---
 
-## 4. microCMS スキーマ設計 (`news` API)
+## 5. microCMS スキーマ定義（ER図 & 詳細）
+
+```mermaid
+erDiagram
+    NEWS_ITEM {
+        string hnId PK "Hacker News ID (重複入稿防止キー)"
+        string title "原題タイトル (英語原文)"
+        string jaTitle "日本語タイトル (Gemini翻訳)"
+        string aiSummary "AI要約 (Geminiによる3行要約)"
+        string url "元記事URL"
+        number score "取得時スコア (Points)"
+        string comment "ひとこと解説 (先輩が入力・任意)"
+        string status "microCMS状態 (draft / published)"
+        datetime publishedAt "公開日時"
+    }
+```
 
 | フィールドID | 表示名 | 種類 | 必須 | 備考 |
 |---|---|---|:---:|---|
@@ -221,15 +172,13 @@ WebApp -> WebApp : SSGビルド & デプロイ完了
 
 ---
 
-## 5. 技術選定と考慮事項
+## 6. 設計のこだわりポイント
 
-1. **完全無料運用の実現**:
-   - GitHub Actions: パブリックリポジトリなら実行無料（プライベートでも月2,000分枠内）
-   - Gemini API: `gemini-2.5-flash` 無料枠（1日5件程度ならレート制限・コストともに余裕）
-   - microCMS: Hobbyプラン（無料）の範囲内
-   - Astro / Cloudflare Pages / Vercel: 無料プラン
-
-2. **堅牢性とセキュリティ**:
-   - microCMS APIキーをバッチ用（POST/GET権限）とフロント用（GET限定）で完全分離
-   - Gemini APIの Structured Outputs (`responseSchema`) を使用し、JSONパースエラーを防止
-   - 元記事スクレイピングはヘッダー（OGP/meta description）のみに絞り、著作権侵害を回避
+1. **完全Mermaid化**:
+   - PlantUML専用サーバーやJava環境に依存せず、GitHub、Qiita、VS Code/IDEで標準レンダリング可能。
+2. **スマホ完結のキュレーション体験**:
+   - `contentId` を使った直リンク `https://{serviceDomain}.microcms.io/apis/news/{contentId}` により、スマホ通知からワンタップで入力・公開。
+3. **安全なスクレイピングと著作権配慮**:
+   - 元記事の本文は一切保持せず、ヘッダー（OGP/meta description）のみを取得して要約材料とし、元記事URLへのリンクを明記。
+4. **完全無料枠での運用**:
+   - GitHub Actions、Gemini 2.5 Flash無料枠、microCMS Hobbyプラン、Cloudflare Pages/Vercelを活用。
