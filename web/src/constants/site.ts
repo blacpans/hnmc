@@ -11,7 +11,7 @@ export const UI_LABELS = {
   COMMENT_BADGE: '💬 ひとこと',
   ORIGINAL_TITLE_PREFIX: '原題:',
   READ_ARTICLE: '元記事を読む ↗',
-  VIEW_HN_DISCUSSION: 'HNの議論を見る',
+  VIEW_HN_DISCUSSION: 'HNの議論を見る ↗',
   EMPTY_MESSAGE: 'まだ公開された記事がないよ！microCMSの管理画面で下書きを公開してみてね。',
   FETCH_ERROR_MESSAGE: '記事の取得中にエラーが発生したよ。しばらくしてから再度確認してね。',
   PREV_PAGE: '← 新しい10日分',

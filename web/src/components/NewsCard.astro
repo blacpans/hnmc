@@ -8,11 +8,22 @@ interface Props {
 
 const { item } = Astro.props;
 const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+const domain = extractDomain(item.url);
 ---
 
 <article class="card">
   <div class="meta">
     <span class="score">▲ {item.score} pts</span>
+    {domain && <span class="domain">{domain}</span>}
   </div>
 
   <h3 class="ja-title">
@@ -30,23 +41,23 @@ const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
   {
     item.comment && (
       <div class="comment-row">
-        <div class="curator-avatar" aria-hidden="true">
-          <span>✍️</span>
-        </div>
         <div class="speech-bubble">
           <span class="badge comment-badge">{UI_LABELS.COMMENT_BADGE}</span>
           <p class="box-text">{item.comment}</p>
+        </div>
+        <div class="curator-avatar" aria-hidden="true">
+          <span>✍️</span>
         </div>
       </div>
     )
   }
 
   <div class="footer-links">
-    <a href={item.url} target="_blank" rel="noopener noreferrer" class="btn-primary">
-      {UI_LABELS.READ_ARTICLE}
-    </a>
-    <a href={hnDiscussionUrl} target="_blank" rel="noopener noreferrer" class="hn-link">
+    <a href={hnDiscussionUrl} target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
       {UI_LABELS.VIEW_HN_DISCUSSION}
+    </a>
+    <a href={item.url} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+      {UI_LABELS.READ_ARTICLE}
     </a>
   </div>
 </article>
@@ -69,13 +80,23 @@ const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.45rem;
+    gap: 0.75rem;
+    margin-bottom: 0.55rem;
   }
 
   .score {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--hn-orange);
+    background-color: var(--hn-orange-soft);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .domain {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 
   .ja-title {
@@ -103,7 +124,7 @@ const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
   .summary-box {
     padding: 0.85rem 1rem;
     border-radius: 6px;
-    margin-bottom: 0.9rem;
+    margin-bottom: 1rem;
     background-color: #131b2b;
     border-left: 3px solid #3b82f6;
   }
@@ -111,8 +132,9 @@ const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
   .comment-row {
     display: flex;
     align-items: flex-start;
+    justify-content: flex-end;
     gap: 0.85rem;
-    margin-bottom: 0.9rem;
+    margin-bottom: 1rem;
   }
 
   .curator-avatar {
@@ -131,24 +153,25 @@ const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
 
   .speech-bubble {
     position: relative;
-    flex: 1;
+    max-width: 85%;
+    min-width: min(260px, 100%);
     padding: 0.85rem 1.1rem;
     background-color: #221a14;
     border: 1px solid rgba(255, 102, 0, 0.4);
     border-radius: 14px;
-    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
   }
 
-  .speech-bubble::before {
+  .speech-bubble::after {
     content: '';
     position: absolute;
     top: 12px;
-    left: -7px;
+    right: -7px;
     width: 12px;
     height: 12px;
     background-color: #221a14;
-    border-left: 1px solid rgba(255, 102, 0, 0.4);
-    border-bottom: 1px solid rgba(255, 102, 0, 0.4);
+    border-right: 1px solid rgba(255, 102, 0, 0.4);
+    border-top: 1px solid rgba(255, 102, 0, 0.4);
     transform: rotate(45deg);
   }
 
@@ -177,33 +200,45 @@ const hnDiscussionUrl = `https://news.ycombinator.com/item?id=${item.hnId}`;
   .footer-links {
     display: flex;
     align-items: center;
-    gap: 1.15rem;
-    margin-top: 1rem;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.15rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    padding: 0.48rem 1rem;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    transition: all 0.15s ease;
   }
 
   .btn-primary {
     background-color: var(--hn-orange);
+    border: 1px solid var(--hn-orange);
     color: #fff;
-    text-decoration: none;
-    padding: 0.42rem 0.9rem;
-    border-radius: 6px;
-    font-size: 0.84rem;
-    font-weight: 700;
-    transition: opacity 0.15s ease;
   }
 
   .btn-primary:hover {
     opacity: 0.88;
   }
 
-  .hn-link {
-    font-size: 0.84rem;
-    color: var(--text-secondary);
-    text-decoration: none;
+  .btn-secondary {
+    background-color: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
   }
 
-  .hn-link:hover {
-    color: var(--text-primary);
-    text-decoration: underline;
+  .btn-secondary:hover {
+    border-color: var(--hn-orange);
+    color: var(--hn-orange);
+    background-color: var(--hn-orange-soft);
   }
 </style>
