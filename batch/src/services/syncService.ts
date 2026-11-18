@@ -103,40 +103,64 @@ function processNewItem(env: EnvConfig, item: HnItem, deps: SyncDependencies): R
     .andThen((aiResult) => saveDraftAndNotify(env, item, aiResult, deps));
 }
 
-function processSingleStory(
+async function collectUnregisteredItems(
   env: EnvConfig,
-  id: number,
+  candidateIds: number[],
   deps: SyncDependencies,
-): ResultAsync<'created' | 'skipped', Error> {
-  const hnId = String(id);
-  console.log(MESSAGES.CHECKING_ARTICLE(hnId));
+  summary: SyncSummary,
+): Promise<HnItem[]> {
+  const unregistered: HnItem[] = [];
 
-  return deps.checkArticleExists(env.MICROCMS_SERVICE_DOMAIN, env.MICROCMS_API_KEY, hnId).andThen((exists) => {
-    if (exists) {
-      console.log(MESSAGES.SKIP_ALREADY_EXISTS(hnId));
-      return ok<'created' | 'skipped', Error>('skipped');
+  for (const id of candidateIds) {
+    const hnId = String(id);
+    console.log(MESSAGES.CHECKING_ARTICLE(hnId));
+
+    const existsResult = await deps.checkArticleExists(env.MICROCMS_SERVICE_DOMAIN, env.MICROCMS_API_KEY, hnId);
+    if (existsResult.isErr()) {
+      const msg = MESSAGES.ARTICLE_FAILED(hnId, existsResult.error.message);
+      console.error(msg);
+      summary.failedCount += 1;
+      summary.errors.push(msg);
+      continue;
     }
 
-    return deps.fetchHnItem(id).andThen((item) => processNewItem(env, item, deps).map(() => 'created' as const));
-  });
+    if (existsResult.value) {
+      console.log(MESSAGES.SKIP_ALREADY_EXISTS(hnId));
+      summary.skippedCount += 1;
+      continue;
+    }
+
+    const itemResult = await deps.fetchHnItem(id);
+    if (itemResult.isErr()) {
+      const msg = MESSAGES.ARTICLE_FAILED(hnId, itemResult.error.message);
+      console.error(msg);
+      summary.failedCount += 1;
+      summary.errors.push(msg);
+      continue;
+    }
+
+    unregistered.push(itemResult.value);
+  }
+
+  return unregistered;
 }
 
-async function processCandidateStories(
+async function processTopScoredItems(
   env: EnvConfig,
-  candidates: number[],
+  items: HnItem[],
   deps: SyncDependencies,
-): Promise<SyncSummary> {
-  const summary: SyncSummary = { createdCount: 0, skippedCount: 0, failedCount: 0, errors: [] };
+  summary: SyncSummary,
+): Promise<void> {
+  const topItems = [...items]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, CONFIG.MAX_ARTICLES_PER_RUN);
+
   let consecutiveFailures = 0;
 
-  for (const id of candidates) {
-    if (summary.createdCount >= CONFIG.MAX_ARTICLES_PER_RUN) {
-      break;
-    }
-
-    const result = await processSingleStory(env, id, deps);
+  for (const item of topItems) {
+    const result = await processNewItem(env, item, deps);
     if (result.isErr()) {
-      const msg = MESSAGES.ARTICLE_FAILED(String(id), result.error.message);
+      const msg = MESSAGES.ARTICLE_FAILED(String(item.id), result.error.message);
       console.error(msg);
       summary.failedCount += 1;
       summary.errors.push(msg);
@@ -152,18 +176,12 @@ async function processCandidateStories(
     }
 
     consecutiveFailures = 0;
-    if (result.value === 'created') {
-      summary.createdCount += 1;
-    } else {
-      summary.skippedCount += 1;
-    }
+    summary.createdCount += 1;
   }
-
-  return summary;
 }
 
 /**
- * Hacker Newsのトレンド記事を取得し、AI要約・下書き登録・Discord通知を一括実行する
+ * Hacker Newsのトレンド記事を取得し、スコア上位3件のAI要約・下書き登録・Discord通知を実行する
  */
 export async function runSyncBatch(
   env: EnvConfig,
@@ -171,14 +189,18 @@ export async function runSyncBatch(
 ): Promise<Result<SyncSummary, Error>> {
   console.log(MESSAGES.BATCH_START);
   console.log(MESSAGES.FETCHING_TOP_STORIES);
+
   const topIdsResult = await deps.fetchTopStoryIds();
   if (topIdsResult.isErr()) {
     await deps.sendErrorNotification(env.DISCORD_WEBHOOK_URL, topIdsResult.error.message);
     return err(topIdsResult.error);
   }
 
-  const candidates = topIdsResult.value.slice(0, CONFIG.MAX_CANDIDATE_SCAN);
-  const summary = await processCandidateStories(env, candidates, deps);
+  const candidateIds = topIdsResult.value.slice(0, CONFIG.MAX_CANDIDATE_SCAN);
+  const summary: SyncSummary = { createdCount: 0, skippedCount: 0, failedCount: 0, errors: [] };
+
+  const unregisteredItems = await collectUnregisteredItems(env, candidateIds, deps, summary);
+  await processTopScoredItems(env, unregisteredItems, deps, summary);
 
   if (summary.failedCount > 0 && summary.createdCount === 0) {
     await deps.sendErrorNotification(env.DISCORD_WEBHOOK_URL, summary.errors.join('\n'));

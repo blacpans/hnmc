@@ -149,4 +149,36 @@ describe('runSyncBatch', () => {
     expect(generateJaSummary).toHaveBeenCalledTimes(3);
     expect(sendErrorNotification).toHaveBeenCalledTimes(1);
   });
+
+  it('未登録記事の中からスコアの高い上位3件だけが厳選されて入稿・通知されること', async () => {
+    const scores: Record<number, number> = {
+      101: 50,
+      102: 400,
+      103: 120,
+      104: 800,
+      105: 250,
+    };
+    const createDraftArticle = vi.fn((_domain, _key, payload) => okAsync(`cms-${payload.hnId}`));
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => okAsync([101, 102, 103, 104, 105]),
+      fetchHnItem: (id) =>
+        okAsync({
+          id,
+          title: `Title ${id}`,
+          url: `https://example.com/${id}`,
+          score: scores[id] ?? 0,
+        }),
+      createDraftArticle,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.createdCount).toBe(3);
+    }
+    expect(createDraftArticle).toHaveBeenCalledTimes(3);
+    const createdIds = createDraftArticle.mock.calls.map((call) => call[2].hnId);
+    expect(createdIds).toEqual(['104', '102', '105']);
+  });
 });

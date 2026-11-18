@@ -4,7 +4,7 @@ export const CONFIG = {
   GEMINI_API_BASE: 'https://generativelanguage.googleapis.com/v1beta/models',
   DEFAULT_GEMINI_MODEL: 'gemini-flash-lite-latest',
   MICROCMS_ENDPOINT: 'news',
-  MAX_ARTICLES_PER_RUN: 5,
+  MAX_ARTICLES_PER_RUN: 3,
   MAX_CANDIDATE_SCAN: 20,
   MAX_CONSECUTIVE_FAILURES: 3,
   API_FETCH_TIMEOUT_MS: 30000,
