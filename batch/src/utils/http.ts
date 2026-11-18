@@ -1,6 +1,8 @@
 import { ResultAsync } from 'neverthrow';
 import { type z } from 'zod';
 
+import { CONFIG } from '@/constants/config';
+
 /**
  * 外部APIからJSONを取得し、Zodスキーマで厳格に検証してResultAsyncで返す
  */
@@ -11,7 +13,8 @@ export function fetchJsonWithSchema<T>(
 ): ResultAsync<T, Error> {
   return ResultAsync.fromPromise(
     (async () => {
-      const res = await fetch(url, init);
+      const signal = init?.signal ?? AbortSignal.timeout(CONFIG.API_FETCH_TIMEOUT_MS);
+      const res = await fetch(url, { ...init, signal });
       if (!res.ok) {
         const bodyText = await res.text();
         throw new Error(`HTTP ${res.status} (${url}): ${bodyText}`);

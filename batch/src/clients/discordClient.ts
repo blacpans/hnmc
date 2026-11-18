@@ -21,6 +21,7 @@ function postDiscordPayload(webhookUrl: string, payload: unknown): ResultAsync<v
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(CONFIG.API_FETCH_TIMEOUT_MS),
       });
       if (!res.ok) {
         const text = await res.text();

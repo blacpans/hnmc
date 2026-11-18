@@ -130,4 +130,23 @@ describe('runSyncBatch', () => {
     }
     expect(sendErrorNotification).toHaveBeenCalledTimes(1);
   });
+
+  it('連続して3件失敗した場合はクォータ保護のため処理を早期中断すること', async () => {
+    const generateJaSummary = vi.fn(() => errAsync(new Error('HTTP 503')));
+    const sendErrorNotification = vi.fn(() => okAsync(undefined));
+    const deps = createMockDependencies({
+      fetchTopStoryIds: () => okAsync([101, 102, 103, 104, 105]),
+      generateJaSummary,
+      sendErrorNotification,
+    });
+
+    const result = await runSyncBatch(mockEnv, deps);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.failedCount).toBe(3);
+    }
+    expect(generateJaSummary).toHaveBeenCalledTimes(3);
+    expect(sendErrorNotification).toHaveBeenCalledTimes(1);
+  });
 });

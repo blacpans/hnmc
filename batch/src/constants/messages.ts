@@ -1,11 +1,15 @@
 export const MESSAGES = {
   ENV_INVALID: '環境変数のバリデーションに失敗したよ！設定を確認してね',
   BATCH_START: 'Hacker News キュレーションバッチを開始するよ！',
+  FETCHING_TOP_STORIES: 'Hacker News のトップ記事一覧を取得中...',
+  CHECKING_ARTICLE: (hnId: string) => `記事を確認中...: ID ${hnId}`,
   BATCH_COMPLETE: 'バッチ処理が完了したよ！',
   SKIP_ALREADY_EXISTS: (hnId: string) => `スキップ（登録済み）: ID ${hnId}`,
   AI_GENERATING: (title: string) => `AI要約を生成中...: ${title}`,
   DRAFT_CREATED: (jaTitle: string, id: string) => `下書き入稿＆通知成功！: ${jaTitle} (ID: ${id})`,
   ARTICLE_FAILED: (hnId: string, reason: string) => `記事の処理に失敗したよ (HN ID: ${hnId}): ${reason}`,
+  ABORT_CONSECUTIVE_FAILURES: (count: number) =>
+    `連続して ${count} 件失敗したため、APIクォータ保護のためバッチを早期中断するよ！`,
   FATAL_ERROR_TITLE: '🚨 HNキュレーションバッチでエラーが発生したよ！',
   FATAL_ERROR_DESCRIPTION: '処理中に問題が起きたためバッチを中断または一部失敗したよ。ログを確認してね！',
   DISCORD_EMBED_TITLE_PREFIX: '📰 新着下書きが入稿されたよ！',

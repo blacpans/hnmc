@@ -109,6 +109,7 @@ function processSingleStory(
   deps: SyncDependencies,
 ): ResultAsync<'created' | 'skipped', Error> {
   const hnId = String(id);
+  console.log(MESSAGES.CHECKING_ARTICLE(hnId));
 
   return deps.checkArticleExists(env.MICROCMS_SERVICE_DOMAIN, env.MICROCMS_API_KEY, hnId).andThen((exists) => {
     if (exists) {
@@ -126,6 +127,7 @@ async function processCandidateStories(
   deps: SyncDependencies,
 ): Promise<SyncSummary> {
   const summary: SyncSummary = { createdCount: 0, skippedCount: 0, failedCount: 0, errors: [] };
+  let consecutiveFailures = 0;
 
   for (const id of candidates) {
     if (summary.createdCount >= CONFIG.MAX_ARTICLES_PER_RUN) {
@@ -138,9 +140,18 @@ async function processCandidateStories(
       console.error(msg);
       summary.failedCount += 1;
       summary.errors.push(msg);
+      consecutiveFailures += 1;
+
+      if (consecutiveFailures >= CONFIG.MAX_CONSECUTIVE_FAILURES) {
+        const abortMsg = MESSAGES.ABORT_CONSECUTIVE_FAILURES(consecutiveFailures);
+        console.error(abortMsg);
+        summary.errors.push(abortMsg);
+        break;
+      }
       continue;
     }
 
+    consecutiveFailures = 0;
     if (result.value === 'created') {
       summary.createdCount += 1;
     } else {
@@ -159,6 +170,7 @@ export async function runSyncBatch(
   deps: SyncDependencies = defaultSyncDependencies,
 ): Promise<Result<SyncSummary, Error>> {
   console.log(MESSAGES.BATCH_START);
+  console.log(MESSAGES.FETCHING_TOP_STORIES);
   const topIdsResult = await deps.fetchTopStoryIds();
   if (topIdsResult.isErr()) {
     await deps.sendErrorNotification(env.DISCORD_WEBHOOK_URL, topIdsResult.error.message);
