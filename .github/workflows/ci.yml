@@ -1,0 +1,41 @@
+name: Batch CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'batch/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'batch/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: batch
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'batch/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
