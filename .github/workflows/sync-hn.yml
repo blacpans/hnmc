@@ -1,10 +1,8 @@
 name: Sync Hacker News to microCMS
 
 on:
-  schedule:
-    # 様子見用: 3時間おきの17分に実行（00分混雑回避）
-    - cron: '17 */3 * * *'
-  workflow_dispatch: # GitHub Actions 画面から手動実行できるようにする
+  # 定時実行は Cloudflare Workers Cron Triggers (worker/) 側から workflow_dispatch で起動する
+  workflow_dispatch:
 
 jobs:
   sync:
