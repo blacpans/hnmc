@@ -2,8 +2,8 @@ name: Sync Hacker News to microCMS
 
 on:
   schedule:
-    # 毎日朝 8:00 (JST) に実行（UTC では前日の 23:00）
-    - cron: '0 23 * * *'
+    # テスト用: 10:15 (JST) に実行（UTC では 01:15）
+    - cron: '15 1 * * *'
   workflow_dispatch: # GitHub Actions 画面から手動実行できるようにする
 
 jobs:
