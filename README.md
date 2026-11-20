@@ -2,7 +2,9 @@
 
 **Hacker News API × Gemini API × microCMS × Astro × Cloudflare** で構築した、完全無料で運用できる半自動テックニュース・キュレーションメディア基盤です。
 
-毎朝 Hacker News の注目記事からスコア上位 3 件を厳選して日本語要約を生成し、microCMS に「下書き」として自動入稿します。同時に Discord へ編集画面の直リンク付き通知を飛ばすことで、スマホからワンタップで「ひとこと」を添えて公開できます。
+毎朝 Hacker News の注目記事からスコア上位 3 件を厳選して日本語要約を生成し、microCMS に「下書き」として自動入稿します。同時に Discord Bot からボタン付き通知を飛ばすことで、Discord アプリ内のモーダル入力だけで「ひとこと」を添えて即公開＆サイト再ビルドまで完結します。
+
+* **公開サイト**: https://hnmc.blacpans.net
 
 ---
 
@@ -15,10 +17,10 @@ flowchart TD
     GHA -->|2. OGP/概要取得| Web["🌐 元記事 Webサイト"]
     GHA -->|3. 翻訳 & 3行要約| Gemini["🤖 Gemini API<br/>(Structured Outputs)"]
     GHA -->|4. 重複排除 & draft入稿| MicroCMS[("📦 microCMS<br/>[news API]")]
-    GHA -->|5. 編集直リンク通知| Discord["💬 Discord<br/>(Webhook)"]
-    Discord -->|タップ| User["📱 キュレーター (スマホ)"]
-    User -->|ひとこと追記 & 公開| MicroCMS
-    MicroCMS -->|公開Webhook| CF["🚀 Cloudflare Pages<br/>(Astro SSG)"]
+    GHA -->|5. ボタン付き通知| Discord["💬 Discord Bot<br/>(ボタン + モーダル入力)"]
+    Discord -->|ひとこと送信| CFInteraction["⚡ Cloudflare Workers<br/>(Interactions + Ed25519検証)"]
+    CFInteraction -->|PATCH コメント & 公開| MicroCMS
+    CFInteraction -->|Deploy Hook 発火| CF["🚀 Cloudflare Pages<br/>(Astro SSG)"]
 ```
 
 ---
@@ -29,7 +31,7 @@ flowchart TD
 |---|---|---|
 | [`batch/`](./batch) | 記事収集・AI要約・microCMS入稿・Discord通知 | TypeScript (`tsx`), `neverthrow`, `Zod`, Vitest |
 | [`web/`](./web) | 公開用 Web サイト（ダークモードUI / 日付別 / 10日ページネーション） | Astro (SSG), `microcms-js-sdk`, `neverthrow`, `Zod` |
-| [`worker/`](./worker) | 毎朝 8:00 JST に GitHub Actions を起動する Cron トリガー | Cloudflare Workers, Wrangler, `neverthrow`, `Zod` |
+| [`worker/`](./worker) | 毎朝 8:00 JST の Cron トリガー ＆ Discord Interactions エンドポイント | Cloudflare Workers, Wrangler, `neverthrow`, `Zod` |
 | [`docs/`](./docs) | アーキテクチャ設計書・開発ロードマップ | Mermaid |
 
 ---
