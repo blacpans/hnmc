@@ -38,21 +38,20 @@ flowchart TD
     end
 
     %% モバイル通知 & キュレーション
-    subgraph MobileCuration ["モバイル通知 & 人間キュレーション"]
-        Discord["💬 Discord<br/>(Incoming Webhook)"]
-        Smartphone["📱 キュレーター (先輩)<br/>(スマホブラウザで直リンク表示)"]
-        Discord -->|編集リンクをタップ| Smartphone
-        Smartphone -->|ひとこと追記 & 公開| MicroCMS
+    subgraph MobileCuration ["Discord完結キュレーション"]
+        Discord["💬 Discord Bot<br/>(ボタン + モーダル入力)"]
+        CFInteraction["⚡ Cloudflare Workers<br/>(Interactions + Ed25519検証)"]
+        Discord -->|ひとこと送信| CFInteraction
+        CFInteraction -->|PATCH コメント & 公開| MicroCMS
     end
 
     %% フロントエンド配信
     subgraph WebHosting ["フロントエンド & 静的ホスティング"]
-        Webhook["🔔 microCMS Webhook<br/>(公開イベント検知)"]
         DeployHook["🚀 Cloudflare Pages<br/>(Deploy Hook)"]
         AstroSite["✨ Astro Webサイト<br/>(ダークモードUI / 日付別10日ページネーション)"]
         
-        MicroCMS -->|コンテンツ公開時のみ発火| Webhook
-        Webhook --> DeployHook
+        CFInteraction -->|Deploy Hook 発火| DeployHook
+        MicroCMS -.->|管理画面公開時Webhook| DeployHook
         DeployHook -->|SSGビルド実行| AstroSite
         AstroSite -->|ビルド時記事取得| MicroCMS
     end
@@ -81,14 +80,13 @@ stateDiagram-v2
     要約生成中 --> 下書き登録完了: Gemini APIで日本語タイトル&3行要約生成
     下書き登録完了 --> 通知送信済み: microCMSに下書き(draft)POST & Discord通知
     
-    state "人間によるキュレーション" as Curation {
-        通知送信済み --> スマホで確認: 先輩がDiscord通知をタップ
-        スマホで確認 --> コメント追記: microCMS編集画面でひとこと記入
-        コメント追記 --> 公開: 「公開」ボタンを押下！
+    state "Discord完結キュレーション" as Curation {
+        通知送信済み --> モーダル入力: 先輩が「ひとこと書いて公開」ボタンをタップ
+        モーダル入力 --> Worker公開処理: ひとこと送信 (Ed25519署名検証)
+        Worker公開処理 --> 公開: microCMS コメント更新 & 公開API実行
     }
     
-    公開 --> Webhook発火: microCMSが公開イベントを通知
-    Webhook発火 --> ビルド中: Cloudflare Pages でデプロイ開始
+    公開 --> ビルド中: WorkerからDeploy Hook発火
     ビルド中 --> サイト公開完了: Astro SSG サイトに反映
     サイト公開完了 --> [*]
 ```
@@ -140,10 +138,14 @@ sequenceDiagram
         Script->>Discord: Incoming Webhook (直リンクURL付き通知)
     end
 
-    Note over Discord,User: スマホにプッシュ通知が届く
-    User->>Discord: 通知内の「編集画面を開く」リンクをタップ
-    User->>CMS: 編集画面でひとこと記入 ＆ 「公開」ボタン押下
-    CMS->>Hosting: Webhook POST (公開時のみトリガー)
+    Note over Discord,User: スマホにボタン付き通知が届く
+    User->>Discord: 「💬 ひとこと書いて公開」ボタン押下 ➔ モーダル送信
+    Discord->>CFWorker: POST Interactions (Ed25519署名検証)
+    CFWorker-->>Discord: 200 OK (type: 5 Deferred Response)
+    CFWorker->>CMS: PATCH /news/{id}?status=draft (ひとこと反映)
+    CFWorker->>CMS: PATCH /contents/news/{id}/status (PUBLISH)
+    CFWorker->>Hosting: POST Deploy Hook
+    CFWorker->>Discord: Followup メッセージ（「✅ 記事を公開したよ！」）
     Hosting->>CMS: GET /news (公開済み最新記事一覧)
     CMS-->>Hosting: 記事データ
     Hosting->>Hosting: Astro SSG ビルド＆静的デプロイ
