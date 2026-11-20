@@ -60,7 +60,26 @@ export function publishContentStatus(
 }
 
 /**
- * ひとことコメントを反映（入力時のみ）した上で、対象コンテンツを公開状態にする
+ * Cloudflare Pages の Deploy Hook を叩いて静的サイトを再ビルドする
+ */
+export function triggerDeployHook(
+  deployHookUrl: string,
+  fetchFn: FetchLike = fetch,
+): ResultAsync<void, Error> {
+  return ResultAsync.fromPromise(
+    (async () => {
+      const res = await fetchFn(deployHookUrl, { method: 'POST' });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Cloudflare Deploy Hookエラー (${res.status}): ${text}`);
+      }
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  );
+}
+
+/**
+ * ひとことコメントを反映（入力時のみ）した上で公開し、Deploy Hook が設定されていればビルドを起動する
  */
 export function publishArticleWithComment(
   env: InteractionEnv,
@@ -73,5 +92,11 @@ export function publishArticleWithComment(
     ? updateDraftComment(env, contentId, trimmedComment, fetchFn)
     : okAsync<void, Error>(undefined);
 
-  return updateStep.andThen(() => publishContentStatus(env, contentId, fetchFn));
+  return updateStep
+    .andThen(() => publishContentStatus(env, contentId, fetchFn))
+    .andThen(() =>
+      env.CLOUDFLARE_DEPLOY_HOOK_URL
+        ? triggerDeployHook(env.CLOUDFLARE_DEPLOY_HOOK_URL, fetchFn)
+        : okAsync<void, Error>(undefined),
+    );
 }

@@ -20,6 +20,7 @@ const interactionEnvSchema = z.object({
   MICROCMS_API_KEY: z.string().min(1),
   MICROCMS_MANAGEMENT_API_KEY: z.string().min(1),
   MICROCMS_ENDPOINT: safeIdentifier.default('news'),
+  CLOUDFLARE_DEPLOY_HOOK_URL: z.string().url().optional(),
 });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;

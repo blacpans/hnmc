@@ -4,3 +4,4 @@ DISCORD_PUBLIC_KEY=your-discord-application-public-key
 MICROCMS_SERVICE_DOMAIN=your-service-domain
 MICROCMS_API_KEY=your-microcms-patch-api-key
 MICROCMS_MANAGEMENT_API_KEY=your-microcms-management-api-key
+CLOUDFLARE_DEPLOY_HOOK_URL=https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/your-hook-id
