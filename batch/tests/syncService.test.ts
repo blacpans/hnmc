@@ -56,6 +56,7 @@ describe('runSyncBatch', () => {
         contentId: 'cms-101',
         serviceDomain: 'test-service',
       }),
+      undefined,
     );
   });
 

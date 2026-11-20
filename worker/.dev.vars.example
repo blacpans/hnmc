@@ -1,2 +1,6 @@
 GITHUB_TOKEN=github_pat_your_fine_grained_token
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url
+DISCORD_PUBLIC_KEY=your-discord-application-public-key
+MICROCMS_SERVICE_DOMAIN=your-service-domain
+MICROCMS_API_KEY=your-microcms-patch-api-key
+MICROCMS_MANAGEMENT_API_KEY=your-microcms-management-api-key
