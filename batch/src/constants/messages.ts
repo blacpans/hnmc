@@ -18,6 +18,8 @@ export const MESSAGES = {
   DISCORD_FIELD_SCORE: '🔥 スコア',
   DISCORD_FIELD_EDIT_LINK: '📱 microCMS でコメント書いて公開',
   DISCORD_EDIT_LINK_LABEL: '編集画面を直接開く',
+  DISCORD_BUTTON_PUBLISH_LABEL: '💬 ひとこと書いて公開',
+  DISCORD_BUTTON_OPEN_CMS_LABEL: 'microCMSで開く',
   DISCORD_FIELD_ORIGINAL_LINK: '🔗 元記事',
   NO_META_DESCRIPTION: '（概要データなし。タイトルから推測して簡潔にまとめてください）',
 } as const;

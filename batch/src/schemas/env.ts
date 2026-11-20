@@ -17,6 +17,8 @@ const envSchema = z.object({
     .regex(/^[a-zA-Z0-9._-]+$/, 'Geminiモデル名は英数字と ._- のみ指定可能だよ')
     .default(CONFIG.DEFAULT_GEMINI_MODEL),
   DISCORD_WEBHOOK_URL: z.string().url(),
+  DISCORD_BOT_TOKEN: z.string().min(1).optional(),
+  DISCORD_CHANNEL_ID: z.string().regex(/^\d+$/).optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

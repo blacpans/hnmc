@@ -7,6 +7,7 @@ GITHUB_OWNER = "blacpans"
 GITHUB_REPO = "hnmc"
 GITHUB_WORKFLOW_ID = "sync-hn.yml"
 GITHUB_REF = "main"
+MICROCMS_ENDPOINT = "news"
 
 [triggers]
 # 毎日朝 8:00 (JST) に実行（UTC では前日の 23:00）

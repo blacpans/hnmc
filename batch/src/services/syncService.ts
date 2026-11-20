@@ -1,6 +1,7 @@
 import { err, ok, type Result, ResultAsync } from 'neverthrow';
 
 import {
+  type DiscordBotConfig,
   type DraftNotificationParams,
   sendDraftNotification,
   sendErrorNotification,
@@ -28,7 +29,11 @@ export type SyncDependencies = {
   ) => ResultAsync<GeminiSummary, Error>;
   checkArticleExists: (domain: string, apiKey: string, hnId: string) => ResultAsync<boolean, Error>;
   createDraftArticle: (domain: string, apiKey: string, payload: MicroCmsDraftPayload) => ResultAsync<string, Error>;
-  sendDraftNotification: (webhookUrl: string, params: DraftNotificationParams) => ResultAsync<void, Error>;
+  sendDraftNotification: (
+    webhookUrl: string,
+    params: DraftNotificationParams,
+    botConfig?: DiscordBotConfig,
+  ) => ResultAsync<void, Error>;
   sendErrorNotification: (webhookUrl: string, detail: string) => ResultAsync<void, Error>;
 };
 
@@ -76,18 +81,27 @@ function saveDraftAndNotify(
     comment: '',
   };
 
+  const botConfig: DiscordBotConfig | undefined =
+    env.DISCORD_BOT_TOKEN && env.DISCORD_CHANNEL_ID
+      ? { botToken: env.DISCORD_BOT_TOKEN, channelId: env.DISCORD_CHANNEL_ID }
+      : undefined;
+
   return deps.createDraftArticle(env.MICROCMS_SERVICE_DOMAIN, env.MICROCMS_API_KEY, payload).andThen((contentId) =>
     deps
-      .sendDraftNotification(env.DISCORD_WEBHOOK_URL, {
-        serviceDomain: env.MICROCMS_SERVICE_DOMAIN,
-        contentId,
-        hnId,
-        jaTitle: aiResult.jaTitle,
-        originalTitle: item.title,
-        aiSummary: aiResult.summary,
-        articleUrl,
-        score: item.score ?? 0,
-      })
+      .sendDraftNotification(
+        env.DISCORD_WEBHOOK_URL,
+        {
+          serviceDomain: env.MICROCMS_SERVICE_DOMAIN,
+          contentId,
+          hnId,
+          jaTitle: aiResult.jaTitle,
+          originalTitle: item.title,
+          aiSummary: aiResult.summary,
+          articleUrl,
+          score: item.score ?? 0,
+        },
+        botConfig,
+      )
       .map(() => {
         console.log(MESSAGES.DRAFT_CREATED(aiResult.jaTitle, contentId));
         return contentId;
